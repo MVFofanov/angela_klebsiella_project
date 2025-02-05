@@ -419,7 +419,7 @@ def plot_scatter_kenya_samples_vs_total_members(data_file: str, output_file: str
     print(f"✅ Scatterplot saved to: {output_file}")
 
 
-def plot_heatmap_kenya_sister_clades(data_file: str, output_file: str):
+def plot_clustered_heatmap_kenya_sister_clades(data_file: str, output_file: str):
     """Creates and saves a clustered heatmap of Kenya samples (rows) vs country counts (columns),
        for all rows where 'Sister Clade Size' <= 1000. Uses log normalization and hierarchical clustering."""
 
@@ -480,7 +480,8 @@ def plot_heatmap_kenya_sister_clades(data_file: str, output_file: str):
     print(f"Min value: {heatmap_data.min().min()}, Max value: {heatmap_data.max().max()}")
 
     # Plot heatmap with hierarchical clustering
-    g = sns.clustermap(
+    plt.figure(figsize=(20, 15))  # 🔹 Increase figure size
+    sns.clustermap(
         heatmap_data,
         cmap="coolwarm",
         linewidths=0.5,
@@ -491,11 +492,7 @@ def plot_heatmap_kenya_sister_clades(data_file: str, output_file: str):
         metric="euclidean",  # Distance metric
     )
 
-    # ✅ Force display of all row labels (Kenya Samples)
-    g.ax_heatmap.set_yticks(np.arange(heatmap_data.shape[0]) + 0.5)  # Correct tick positions
-    g.ax_heatmap.set_yticklabels(heatmap_data.index, rotation=0, fontsize=8)  # Adjust font size
-
-    # ✅ Save the figure
+    # Save the figure
     plt.savefig(output_file, dpi=600, bbox_inches="tight")
     plt.close()
 
@@ -556,4 +553,4 @@ if __name__ == "__main__":
     plot_scatter_kenya_samples_vs_total_members(output_kenya_sister_clades_countries,
                                                 output_scatterplot_kenya_samples_vs_total_members)
 
-    plot_heatmap_kenya_sister_clades(output_kenya_clades, output_heatmap)
+    plot_clustered_heatmap_kenya_sister_clades(output_kenya_clades, output_heatmap)
