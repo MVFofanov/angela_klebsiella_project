@@ -5,6 +5,7 @@ from typing import Dict, List, Tuple
 
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.ticker as ticker
 import pandas as pd
 import seaborn as sns
 from ete3 import Tree, TreeStyle, NodeStyle, TextFace
@@ -417,6 +418,80 @@ def plot_scatter_kenya_samples_vs_total_members(data_file: str, output_file: str
     print(f"✅ Scatterplot saved to: {output_file}")
 
 
+def plot_heatmap_kenya_sister_clades(data_file: str, output_file: str):
+    """Creates and saves a heatmap of Kenya samples (rows) vs country counts (columns),
+       for all rows where 'Sister Clade Size' <= 1000."""
+
+    # Ensure output directory exists
+    os.makedirs(os.path.dirname(output_file), exist_ok=True)
+
+    # Load the dataset
+    df = pd.read_csv(data_file, sep="\t")
+
+    # ✅ Strip any unexpected whitespace in column names
+    df.columns = df.columns.str.strip()
+
+    # ✅ Ensure "Kenya Sample" exists in the dataset
+    if "Kenya Sample" not in df.columns:
+        raise KeyError("Column 'Kenya Sample' is missing in the dataset!")
+
+    # Filter rows where 'Sister Clade Size' <= 1000
+    df_filtered = df[df["Sister Clade Size"] <= 1000].copy()  # Copy to avoid warnings
+
+    # Extract only the country columns (ignoring metadata columns)
+    metadata_columns = {
+        "Kenya Sample", "Sister Clade Size", "Number of continents",
+        "Sister Clade Continents", "Continent Counts", "Number of countries",
+        "Sister Clade Countries", "Country Counts", "Sister Clade Members",
+        "Sister Clade Members with known countries",
+        "Sister Clade Members with known countries size",
+        "Sister Clade Members with known countries ratio"
+    }
+
+    # Ensure continent labels are treated separately
+    continents = {"Africa", "Asia", "Europe", "N_America", "No_Match", "Oceania", "S_America"}
+
+    columns_to_exclude = metadata_columns | continents  # Combine metadata and continent names
+
+    country_columns = [col for col in df_filtered.columns if col not in columns_to_exclude]
+
+    # ✅ Ensure at least some country columns exist
+    if not country_columns:
+        raise ValueError("No valid country columns found in the dataset!")
+
+    # Subset only the required columns
+    heatmap_data = df_filtered.set_index("Kenya Sample")[country_columns]
+
+    # ✅ Convert NaN to 0
+    heatmap_data = heatmap_data.fillna(0)
+
+    # ✅ Ensure at least one row remains
+    if heatmap_data.empty:
+        raise ValueError("Filtered dataset is empty. Check if 'Sister Clade Size' has values <= 1000.")
+
+    # Plot heatmap
+    plt.figure(figsize=(20, 12))  # 🔹 Increase figure size
+    ax = sns.heatmap(heatmap_data, cmap="coolwarm", linewidths=0.5, linecolor="gray")
+
+    # Set labels and title
+    plt.xlabel("Country", fontsize=12)
+    plt.ylabel("Kenya Sample", fontsize=12)
+    plt.title("Heatmap of Kenya Samples vs. Sister Clade Country Counts", fontsize=14)
+
+    # ✅ Show all country names
+    ax.set_xticks(np.arange(len(country_columns)) + 0.5)
+    ax.set_xticklabels(country_columns, rotation=90, ha="right", fontsize=8)
+
+    # ✅ Ensure every label appears
+    ax.xaxis.set_major_locator(ticker.FixedLocator(np.arange(len(country_columns)) + 0.5))
+
+    # Save the figure
+    plt.savefig(output_file, dpi=600, bbox_inches="tight")
+    plt.close()
+
+    print(f"✅ Heatmap saved to: {output_file}")
+
+
 # Run the pipeline
 if __name__ == "__main__":
     import matplotlib
@@ -439,6 +514,7 @@ if __name__ == "__main__":
     output_scatterplot_continents_vs_clade_size = f'{figures_dir}/scatterplot_continents_vs_clade_size.png'
 
     output_scatterplot_kenya_samples_vs_total_members = f"{figures_dir}/scatterplot_number_of_kenya_samples_vs_total_country_members_with_continents.png"
+    output_heatmap = f"{figures_dir}/heatmap_kenya_sample_vs_countries.png"
 
     # Configure logging
     logging.basicConfig(
@@ -469,3 +545,5 @@ if __name__ == "__main__":
 
     plot_scatter_kenya_samples_vs_total_members(output_kenya_sister_clades_countries,
                                                 output_scatterplot_kenya_samples_vs_total_members)
+
+    plot_heatmap_kenya_sister_clades(output_kenya_clades, output_heatmap)
