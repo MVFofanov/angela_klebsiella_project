@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
 import pandas as pd
 import seaborn as sns
+from scipy.cluster import hierarchy
 from ete3 import Tree, TreeStyle, NodeStyle, TextFace
 
 # Set environment variable for non-interactive backend
@@ -419,8 +420,8 @@ def plot_scatter_kenya_samples_vs_total_members(data_file: str, output_file: str
 
 
 def plot_heatmap_kenya_sister_clades(data_file: str, output_file: str):
-    """Creates and saves a heatmap of Kenya samples (rows) vs country counts (columns),
-       for all rows where 'Sister Clade Size' <= 1000."""
+    """Creates and saves a clustered heatmap of Kenya samples (rows) vs country counts (columns),
+       for all rows where 'Sister Clade Size' <= 1000. Uses log normalization and hierarchical clustering."""
 
     # Ensure output directory exists
     os.makedirs(os.path.dirname(output_file), exist_ok=True)
@@ -448,10 +449,9 @@ def plot_heatmap_kenya_sister_clades(data_file: str, output_file: str):
         "Sister Clade Members with known countries ratio"
     }
 
-    # Ensure continent labels are treated separately
     continents = {"Africa", "Asia", "Europe", "N_America", "No_Match", "Oceania", "S_America"}
 
-    columns_to_exclude = metadata_columns | continents  # Combine metadata and continent names
+    columns_to_exclude = metadata_columns | continents
 
     country_columns = [col for col in df_filtered.columns if col not in columns_to_exclude]
 
@@ -465,31 +465,41 @@ def plot_heatmap_kenya_sister_clades(data_file: str, output_file: str):
     # ✅ Convert NaN to 0
     heatmap_data = heatmap_data.fillna(0)
 
-    # ✅ Ensure at least one row remains
-    if heatmap_data.empty:
-        raise ValueError("Filtered dataset is empty. Check if 'Sister Clade Size' has values <= 1000.")
+    # ✅ Apply Log10 Normalization
+    heatmap_data = np.log10(heatmap_data + 1)  # log10(x+1) avoids log(0) issues
 
-    # Plot heatmap
-    plt.figure(figsize=(20, 12))  # 🔹 Increase figure size
-    ax = sns.heatmap(heatmap_data, cmap="coolwarm", linewidths=0.5, linecolor="gray")
+    # ✅ Ensure only finite values
+    if not np.isfinite(heatmap_data.to_numpy()).all():
+        raise ValueError("The dataset contains infinite or NaN values after transformation.")
 
-    # Set labels and title
-    plt.xlabel("Country", fontsize=12)
-    plt.ylabel("Kenya Sample", fontsize=12)
-    plt.title("Heatmap of Kenya Samples vs. Sister Clade Country Counts", fontsize=14)
+    # ✅ Remove rows & columns with all zeros
+    heatmap_data = heatmap_data.loc[(heatmap_data != 0).any(axis=1), (heatmap_data != 0).any(axis=0)]
 
-    # ✅ Show all country names
-    ax.set_xticks(np.arange(len(country_columns)) + 0.5)
-    ax.set_xticklabels(country_columns, rotation=90, ha="right", fontsize=8)
+    # ✅ Print diagnostics before clustering
+    print(f"Heatmap data shape (after filtering): {heatmap_data.shape}")
+    print(f"Min value: {heatmap_data.min().min()}, Max value: {heatmap_data.max().max()}")
 
-    # ✅ Ensure every label appears
-    ax.xaxis.set_major_locator(ticker.FixedLocator(np.arange(len(country_columns)) + 0.5))
+    # Plot heatmap with hierarchical clustering
+    g = sns.clustermap(
+        heatmap_data,
+        cmap="coolwarm",
+        linewidths=0.5,
+        linecolor="gray",
+        standard_scale=1,  # Normalize across columns
+        figsize=(20, 15),
+        method="ward",  # Clustering method
+        metric="euclidean",  # Distance metric
+    )
 
-    # Save the figure
+    # ✅ Force display of all row labels (Kenya Samples)
+    g.ax_heatmap.set_yticks(np.arange(heatmap_data.shape[0]) + 0.5)  # Correct tick positions
+    g.ax_heatmap.set_yticklabels(heatmap_data.index, rotation=0, fontsize=8)  # Adjust font size
+
+    # ✅ Save the figure
     plt.savefig(output_file, dpi=600, bbox_inches="tight")
     plt.close()
 
-    print(f"✅ Heatmap saved to: {output_file}")
+    print(f"✅ Clustered Heatmap saved to: {output_file}")
 
 
 # Run the pipeline
