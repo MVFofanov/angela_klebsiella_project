@@ -584,7 +584,16 @@ def plot_clustered_heatmap_kenya_sister_clades(data_file: str, metadata_file: st
 
     # ✅ Add a legend for continents
     legend_patches = [Patch(facecolor=color, label=continent) for continent, color in continent_palette.items()]
-    g.ax_heatmap.legend(handles=legend_patches, title="Continents", bbox_to_anchor=(1.05, 1), loc="upper left")
+    # g.ax_heatmap.legend(handles=legend_patches, title="Continents", bbox_to_anchor=(1.05, 1), loc="upper left")
+    # g.ax_heatmap.legend(handles=legend_patches, title="Continents", bbox_to_anchor=(0, 0), loc="upper right")
+
+    g.ax_heatmap.legend(
+        handles=legend_patches,
+        title="Continents",
+        bbox_to_anchor=(1.25, 1),  # Move legend further to the right
+        loc="upper right",
+        fontsize=10  # Adjust font size if needed
+    )
 
     # ✅ Save the figure
     plt.savefig(output_file, dpi=600, bbox_inches="tight")
