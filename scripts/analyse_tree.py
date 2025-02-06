@@ -265,8 +265,8 @@ def plot_scatter_countries_vs_clade_size(data_file: str, output_file: str):
 
     # Set labels and title
     plt.xlabel("Number of Countries")
-    plt.ylabel("Log10 Sister Clade Size")
-    plt.title("Scatterplot of Number of Countries vs. Sister Clade Size")
+    plt.ylabel("Log10 Number of members in a sister clade")
+    plt.title("Scatterplot of Number of Countries vs. Number of members in a sister clade")
 
     # Save the figure
     plt.savefig(output_file, dpi=600, bbox_inches="tight")
@@ -297,14 +297,54 @@ def plot_scatter_continents_vs_clade_size(data_file: str, output_file: str):
 
     # Set labels and title
     plt.xlabel("Number of Continents")
-    plt.ylabel("Log10 Sister Clade Size")
-    plt.title("Scatterplot of Number of Continents vs. Sister Clade Size")
+    plt.ylabel("Log10 Number of members in a sister clade")
+    plt.title("Scatterplot of Number of Continents vs. Number of members in a sister clade")
 
     # Save the figure
     plt.savefig(output_file, dpi=600, bbox_inches="tight")
     plt.close()
 
     print(f"✅ Scatterplot saved to: {output_file}")
+
+
+def plot_boxplot_continents_vs_clade_size(data_file: str, output_file: str):
+    """Creates and saves a boxplot of Number of Continents vs Log10 Sister Clade Size,
+       with individual data points displayed as a swarmplot overlay."""
+
+    # Ensure output directory exists
+    os.makedirs(os.path.dirname(output_file), exist_ok=True)
+
+    # Load the dataset
+    df = pd.read_csv(data_file, sep="\t")
+
+    # Check if required columns exist
+    if "Number of continents" not in df.columns or "Sister Clade Size" not in df.columns:
+        raise ValueError("Missing required columns in the dataset!")
+
+    # Log-transform the Sister Clade Size column
+    df["Log10 Sister Clade Size"] = np.log10(df["Sister Clade Size"] + 1)  # Avoid log(0) issues
+
+    # Create figure
+    plt.figure(figsize=(8, 6))
+
+    # Plot boxplot
+    sns.boxplot(data=df, x="Number of continents", y="Log10 Sister Clade Size", showfliers=False, width=0.6,
+                boxprops={'facecolor': 'lightgray'})
+
+    # Overlay with jittered scatterplot (swarm)
+    sns.stripplot(data=df, x="Number of continents", y="Log10 Sister Clade Size", color="black", jitter=0.2, alpha=0.7,
+                  size=5)
+
+    # Set labels and title
+    plt.xlabel("Number of Continents")
+    plt.ylabel("Log10 Number of Members in a Sister Clade")
+    plt.title("Boxplot of Number of Continents vs. Number of Members in a Sister Clade")
+
+    # Save the figure
+    plt.savefig(output_file, dpi=600, bbox_inches="tight")
+    plt.close()
+
+    print(f"✅ Boxplot with individual points saved to: {output_file}")
 
 
 def extract_kenya_sister_clades_countries(input_file: str, metadata_df: pd.DataFrame, output_file: str):
@@ -529,6 +569,7 @@ if __name__ == "__main__":
 
     output_scatterplot_countries_vs_clade_size = f'{figures_dir}/scatterplot_countries_vs_clade_size.png'
     output_scatterplot_continents_vs_clade_size = f'{figures_dir}/scatterplot_continents_vs_clade_size.png'
+    output_boxplot_continents_vs_clade_size = f'{figures_dir}/boxplot_continents_vs_clade_size.png'
 
     output_scatterplot_kenya_samples_vs_total_members = f"{figures_dir}/scatterplot_number_of_kenya_samples_vs_total_country_members_with_continents.png"
     output_heatmap = f"{figures_dir}/heatmap_kenya_sample_vs_countries.png"
@@ -556,6 +597,7 @@ if __name__ == "__main__":
 
     plot_scatter_countries_vs_clade_size(output_kenya_clades, output_scatterplot_countries_vs_clade_size)
     plot_scatter_continents_vs_clade_size(output_kenya_clades, output_scatterplot_continents_vs_clade_size)
+    plot_boxplot_continents_vs_clade_size(output_kenya_clades, output_boxplot_continents_vs_clade_size)
 
     # Extract country counts for small clades (<=1000 members)
     extract_kenya_sister_clades_countries(output_kenya_clades, metadata_df, output_kenya_sister_clades_countries)
