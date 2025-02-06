@@ -548,10 +548,13 @@ def plot_clustered_heatmap_kenya_sister_clades(data_file: str, metadata_file: st
     reordered_country_names = heatmap_data.columns[col_order]
     reordered_colors = [continent_colors[i] for i in col_order]  # Reorder colors to match clustering
 
+    # ✅ **Remove first set of country labels**
+    g.ax_heatmap.set_xticklabels([])  # **Remove x-axis labels from heatmap**
+
     # ✅ Move continent annotation BELOW the heatmap
     ax_continent = g.fig.add_axes([g.ax_heatmap.get_position().x0,  # Match heatmap width
-                                   g.ax_heatmap.get_position().y0 - 0.06,  # Move lower
-                                   # g.ax_heatmap.get_position().width,  # Match heatmap width
+                                   g.ax_heatmap.get_position().y0 - 0.03,  # Move lower
+                                   # g.ax_heatmap.get_position().y0 - 0.06,  # Move lower
                                    g.ax_heatmap.get_position().width - 0.006,  # Match heatmap width
                                    0.02])  # Small height
 
@@ -566,15 +569,18 @@ def plot_clustered_heatmap_kenya_sister_clades(data_file: str, metadata_file: st
 
     # ✅ Move country labels BELOW continent annotation
     ax_countries = g.fig.add_axes([g.ax_heatmap.get_position().x0,  # Match heatmap width
-                                    g.ax_heatmap.get_position().y0 - 0.07,  # Move even lower
-                                    # g.ax_heatmap.get_position().y0 - 0.10,  # Move even lower
-                                    g.ax_heatmap.get_position().width,
-                                    0.02])  # Small height for labels
+                                   g.ax_heatmap.get_position().y0 - 0.035,  # Move even lower
+                                   g.ax_heatmap.get_position().width - 0.006,
+                                   0.02])  # Small height for labels
 
     ax_countries.set_xticks(np.arange(len(col_order)) + 0.5)
     ax_countries.set_xticklabels(reordered_country_names, rotation=90, fontsize=8)
     ax_countries.set_yticks([])
     ax_countries.set_frame_on(False)
+
+    # ✅ Update tick labels to display all Kenya Sample names correctly
+    g.ax_heatmap.set_yticks(np.arange(len(row_order)) + 0.5)  # Correct tick positions
+    g.ax_heatmap.set_yticklabels(heatmap_data.index, rotation=0, fontsize=8)  # Keep correct sample order
 
     # ✅ Add a legend for continents
     legend_patches = [Patch(facecolor=color, label=continent) for continent, color in continent_palette.items()]
