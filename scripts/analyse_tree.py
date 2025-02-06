@@ -551,7 +551,8 @@ def plot_clustered_heatmap_kenya_sister_clades(data_file: str, metadata_file: st
     # ✅ Move continent annotation BELOW the heatmap
     ax_continent = g.fig.add_axes([g.ax_heatmap.get_position().x0,  # Match heatmap width
                                    g.ax_heatmap.get_position().y0 - 0.06,  # Move lower
-                                   g.ax_heatmap.get_position().width,  # Match heatmap width
+                                   # g.ax_heatmap.get_position().width,  # Match heatmap width
+                                   g.ax_heatmap.get_position().width - 0.006,  # Match heatmap width
                                    0.02])  # Small height
 
     ax_continent.set_xticks(np.arange(len(col_order)) + 0.5)
@@ -565,7 +566,8 @@ def plot_clustered_heatmap_kenya_sister_clades(data_file: str, metadata_file: st
 
     # ✅ Move country labels BELOW continent annotation
     ax_countries = g.fig.add_axes([g.ax_heatmap.get_position().x0,  # Match heatmap width
-                                    g.ax_heatmap.get_position().y0 - 0.10,  # Move even lower
+                                    g.ax_heatmap.get_position().y0 - 0.07,  # Move even lower
+                                    # g.ax_heatmap.get_position().y0 - 0.10,  # Move even lower
                                     g.ax_heatmap.get_position().width,
                                     0.02])  # Small height for labels
 
