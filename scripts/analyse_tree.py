@@ -4,6 +4,7 @@ import os
 from typing import Dict, List, Tuple
 
 import numpy as np
+from matplotlib.patches import Patch, Rectangle
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
 import pandas as pd
@@ -459,27 +460,41 @@ def plot_scatter_kenya_samples_vs_total_members(data_file: str, output_file: str
     print(f"✅ Scatterplot saved to: {output_file}")
 
 
-def plot_clustered_heatmap_kenya_sister_clades(data_file: str, output_file: str):
-    """Creates and saves a clustered heatmap of Kenya samples (rows) vs country counts (columns),
-       for all rows where 'Sister Clade Size' <= 1000. Uses log normalization and hierarchical clustering."""
+def plot_clustered_heatmap_kenya_sister_clades(data_file: str, metadata_file: str, output_file: str):
+    """Creates a clustered heatmap of Kenya samples (rows) vs country counts (columns),
+       for 'Sister Clade Size' <= 1000. Uses log normalization, hierarchical clustering,
+       and continent annotation as colored boxes aligned below the heatmap, with country labels below them."""
 
     # Ensure output directory exists
     os.makedirs(os.path.dirname(output_file), exist_ok=True)
 
     # Load the dataset
     df = pd.read_csv(data_file, sep="\t")
+    df.columns = df.columns.str.strip()  # Strip whitespace in column names
 
-    # ✅ Strip any unexpected whitespace in column names
-    df.columns = df.columns.str.strip()
-
-    # ✅ Ensure "Kenya Sample" exists in the dataset
+    # Ensure "Kenya Sample" exists
     if "Kenya Sample" not in df.columns:
         raise KeyError("Column 'Kenya Sample' is missing in the dataset!")
 
-    # Filter rows where 'Sister Clade Size' <= 1000
-    df_filtered = df[df["Sister Clade Size"] <= 1000].copy()  # Copy to avoid warnings
+    # Load metadata for country-to-continent mapping
+    metadata_df = pd.read_csv(metadata_file, sep="\t")  # Ensure 'Country' and 'Continent' columns exist
+    country_to_continent = dict(zip(metadata_df["Country"], metadata_df["Continent"]))
 
-    # Extract only the country columns (ignoring metadata columns)
+    # Define continent color palette
+    continent_palette = {
+        "Asia": "#E74C3C",  # Red
+        "Europe": "#3498DB",  # Blue
+        "N_America": "#2ECC71",  # Green
+        "S_America": "#F1C40F",  # Yellow
+        "No_Match": "black",  # Black
+        "Africa": "#8B4513",  # Dark Brown
+        "Oceania": "#E67E22"  # Orange
+    }
+
+    # Filter rows where 'Sister Clade Size' <= 1000
+    df_filtered = df[df["Sister Clade Size"] <= 1000].copy()
+
+    # Identify metadata columns
     metadata_columns = {
         "Kenya Sample", "Sister Clade Size", "Number of continents",
         "Sister Clade Continents", "Continent Counts", "Number of countries",
@@ -490,63 +505,84 @@ def plot_clustered_heatmap_kenya_sister_clades(data_file: str, output_file: str)
     }
 
     continents = {"Africa", "Asia", "Europe", "N_America", "No_Match", "Oceania", "S_America"}
-
     columns_to_exclude = metadata_columns | continents
-
     country_columns = [col for col in df_filtered.columns if col not in columns_to_exclude]
 
-    # ✅ Ensure at least some country columns exist
+    # Ensure at least some country columns exist
     if not country_columns:
         raise ValueError("No valid country columns found in the dataset!")
 
     # Subset only the required columns
     heatmap_data = df_filtered.set_index("Kenya Sample")[country_columns]
+    heatmap_data = heatmap_data.fillna(0)  # Convert NaN to 0
+    heatmap_data = np.log10(heatmap_data + 1)  # Log10 Normalization
 
-    # ✅ Convert NaN to 0
-    heatmap_data = heatmap_data.fillna(0)
-
-    # ✅ Apply Log10 Normalization
-    heatmap_data = np.log10(heatmap_data + 1)  # log10(x+1) avoids log(0) issues
-
-    # ✅ Ensure only finite values
-    if not np.isfinite(heatmap_data.to_numpy()).all():
-        raise ValueError("The dataset contains infinite or NaN values after transformation.")
-
-    # ✅ Remove rows & columns with all zeros
+    # Remove rows & columns with all zeros
     heatmap_data = heatmap_data.loc[(heatmap_data != 0).any(axis=1), (heatmap_data != 0).any(axis=0)]
 
-    # ✅ Print diagnostics before clustering
-    print(f"Heatmap data shape (after filtering): {heatmap_data.shape}")
-    print(f"Min value: {heatmap_data.min().min()}, Max value: {heatmap_data.max().max()}")
+    # Extract continent information for country columns
+    country_continents = [country_to_continent.get(col, "No_Match") for col in heatmap_data.columns]
+    continent_colors = [continent_palette.get(continent, "black") for continent in country_continents]
 
     # Plot heatmap with hierarchical clustering
-    plt.figure(figsize=(20, 15))  # 🔹 Increase figure size
+    plt.figure(figsize=(20, 18))  # Increased figure size
     g = sns.clustermap(
         heatmap_data,
         cmap="coolwarm",
         linewidths=0.5,
         linecolor="gray",
         standard_scale=1,  # Normalize across columns
-        figsize=(20, 15),
+        figsize=(20, 18),
         method="ward",  # Clustering method
         metric="euclidean",  # Distance metric
+        col_cluster=True,  # Cluster columns (countries)
+        row_cluster=True  # Cluster rows (Kenya samples)
     )
 
-    # ✅ Extract the correct clustered order of rows (Kenya Samples)
-    row_order = g.dendrogram_row.reordered_ind  # Indices of clustered row order
+    # Extract correct clustered order of rows (Kenya Samples)
+    row_order = g.dendrogram_row.reordered_ind
+    col_order = g.dendrogram_col.reordered_ind  # Correct order of columns (countries)
 
     # ✅ Reorder heatmap_data based on clustering results
     heatmap_data = heatmap_data.iloc[row_order, :]
+    reordered_country_names = heatmap_data.columns[col_order]
+    reordered_colors = [continent_colors[i] for i in col_order]  # Reorder colors to match clustering
 
-    # ✅ Update tick labels to display all Kenya Sample names correctly
-    g.ax_heatmap.set_yticks(np.arange(len(row_order)) + 0.5)  # Correct tick positions
-    g.ax_heatmap.set_yticklabels(heatmap_data.index, rotation=0, fontsize=8)  # Keep correct sample order
+    # ✅ Move continent annotation BELOW the heatmap
+    ax_continent = g.fig.add_axes([g.ax_heatmap.get_position().x0,  # Match heatmap width
+                                   g.ax_heatmap.get_position().y0 - 0.06,  # Move lower
+                                   g.ax_heatmap.get_position().width,  # Match heatmap width
+                                   0.02])  # Small height
+
+    ax_continent.set_xticks(np.arange(len(col_order)) + 0.5)
+    ax_continent.set_xticklabels([])  # Hide labels
+    ax_continent.set_yticks([])
+    ax_continent.set_frame_on(False)
+
+    # ✅ Draw continent annotation boxes
+    for x, color in enumerate(reordered_colors):
+        ax_continent.add_patch(Rectangle((x, 0), 1, 1, color=color, transform=ax_continent.transData, clip_on=False))
+
+    # ✅ Move country labels BELOW continent annotation
+    ax_countries = g.fig.add_axes([g.ax_heatmap.get_position().x0,  # Match heatmap width
+                                    g.ax_heatmap.get_position().y0 - 0.10,  # Move even lower
+                                    g.ax_heatmap.get_position().width,
+                                    0.02])  # Small height for labels
+
+    ax_countries.set_xticks(np.arange(len(col_order)) + 0.5)
+    ax_countries.set_xticklabels(reordered_country_names, rotation=90, fontsize=8)
+    ax_countries.set_yticks([])
+    ax_countries.set_frame_on(False)
+
+    # ✅ Add a legend for continents
+    legend_patches = [Patch(facecolor=color, label=continent) for continent, color in continent_palette.items()]
+    g.ax_heatmap.legend(handles=legend_patches, title="Continents", bbox_to_anchor=(1.05, 1), loc="upper left")
 
     # ✅ Save the figure
     plt.savefig(output_file, dpi=600, bbox_inches="tight")
     plt.close()
 
-    print(f"✅ Clustered Heatmap saved to: {output_file}")
+    print(f"✅ Clustered Heatmap with Continent Annotations saved to: {output_file}")
 
 
 # Run the pipeline
@@ -605,4 +641,4 @@ if __name__ == "__main__":
     plot_scatter_kenya_samples_vs_total_members(output_kenya_sister_clades_countries,
                                                 output_scatterplot_kenya_samples_vs_total_members)
 
-    plot_clustered_heatmap_kenya_sister_clades(output_kenya_clades, output_heatmap)
+    plot_clustered_heatmap_kenya_sister_clades(output_kenya_clades, output_metadata_tsv, output_heatmap)
