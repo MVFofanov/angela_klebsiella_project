@@ -481,7 +481,7 @@ def plot_clustered_heatmap_kenya_sister_clades(data_file: str, output_file: str)
 
     # Plot heatmap with hierarchical clustering
     plt.figure(figsize=(20, 15))  # 🔹 Increase figure size
-    sns.clustermap(
+    g = sns.clustermap(
         heatmap_data,
         cmap="coolwarm",
         linewidths=0.5,
@@ -492,7 +492,17 @@ def plot_clustered_heatmap_kenya_sister_clades(data_file: str, output_file: str)
         metric="euclidean",  # Distance metric
     )
 
-    # Save the figure
+    # ✅ Extract the correct clustered order of rows (Kenya Samples)
+    row_order = g.dendrogram_row.reordered_ind  # Indices of clustered row order
+
+    # ✅ Reorder heatmap_data based on clustering results
+    heatmap_data = heatmap_data.iloc[row_order, :]
+
+    # ✅ Update tick labels to display all Kenya Sample names correctly
+    g.ax_heatmap.set_yticks(np.arange(len(row_order)) + 0.5)  # Correct tick positions
+    g.ax_heatmap.set_yticklabels(heatmap_data.index, rotation=0, fontsize=8)  # Keep correct sample order
+
+    # ✅ Save the figure
     plt.savefig(output_file, dpi=600, bbox_inches="tight")
     plt.close()
 
